@@ -32,7 +32,7 @@ struct MapScreen: View {
                 canMark: locationManager.location != nil,
                 onMarkSignal: markSignalHere,
                 onCenter: { camera = .userLocation(fallback: .automatic) },
-                onExport: { exportText = JSONExporter.export(signals: signals) }
+                onExport: { exportText = makeExportJSON() }
             )
         }
         .overlay(alignment: .top) {
@@ -54,6 +54,16 @@ struct MapScreen: View {
     private func markSignalHere() {
         guard let coordinate = locationManager.location?.coordinate else { return }
         context.insert(Signal(coordinate: coordinate, source: .manual))
+    }
+
+    /// Prefer a signed, verifiable bundle (first step toward the data network);
+    /// fall back to plain JSON if the device identity can't be loaded.
+    private func makeExportJSON() -> String {
+        if let identity = try? KeychainIdentity.loadOrCreate(),
+           let json = try? JSONExporter.signedBundleJSON(signals: signals, identity: identity) {
+            return json
+        }
+        return JSONExporter.export(signals: signals)
     }
 
     private var authorizationBanner: some View {
