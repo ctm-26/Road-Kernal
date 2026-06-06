@@ -92,8 +92,8 @@ final class SigningTests: XCTestCase {
         let json = try JSONExporter.signedBundleJSON(signals: [signal], identity: identity)
 
         let bundle = try JSONDecoder().decode(JSONExporter.SignedBundle.self, from: Data(json.utf8))
-        XCTAssertEqual(bundle.records.count, 1)
-        XCTAssertEqual(bundle.kind, "roadkernel.signals.v1")
-        XCTAssertTrue(bundle.records.allSatisfy { RecordSigner.verify($0) })
+        XCTAssertEqual(bundle.signals.count, 1)
+        XCTAssertEqual(bundle.kind, "roadkernel.bundle.v1")
+        XCTAssertTrue(bundle.signals.allSatisfy { RecordSigner.verify($0) })
     }
 }

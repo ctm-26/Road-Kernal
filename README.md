@@ -14,13 +14,15 @@ meaning — collected as field data, stored locally, owned by you.
 
 ## Status
 
-**v0.1 scaffold + signing foundation + design docs.** The `RoadKernel/` Swift
-sources implement the smallest runnable slice (map, location, Mark Signal, pins,
-detail, JSON export) plus the cryptographic foundation for a future verifiable
-data network — a per-install keypair and content-addressed, signed export bundles
-(`RoadKernel/Crypto/`). Unit tests live in `RoadKernelTests/`. The design
-documents explain the concept, the fixes for what sank the first build, the road
-ahead, and the network direction.
+**v0.2 + signing foundation + design docs.** The `RoadKernel/` Swift sources
+implement the map, location tracking, Mark Signal, pins/detail, and **v0.2
+observations** (RED/YELLOW/GREEN logging with manual nearest-signal confirmation,
+observation history, and suggested confidence). On top sits the cryptographic
+foundation for a future verifiable data network — a per-install keypair and
+content-addressed, signed export bundles where observation blocks link to their
+signal block as Merkle parents (`RoadKernel/Crypto/`). Unit tests live in
+`RoadKernelTests/`. The design documents explain the concept, the fixes for what
+sank the first build, the road ahead, and the network direction.
 
 > Authored on Linux — **not yet compiled**. Build it on a Mac with Xcode; see
 > [SETUP.md](SETUP.md).

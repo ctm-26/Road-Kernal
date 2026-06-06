@@ -31,7 +31,7 @@ SwiftData target 17+, `LocationManager` pattern — all in
 
 ---
 
-## v0.2 — Observations
+## v0.2 — Observations  ✅ implemented
 **Goal:** record red/yellow/green states with timestamps.
 
 - `SignalObservation` model (stores state, timestamp, lat/lon, speed, heading,

@@ -1,11 +1,13 @@
 import SwiftUI
 
-/// The bottom cockpit panel: large, high-contrast buttons. The primary action
-/// ("Mark Signal Here") is oversized per the low-touch safety design.
+/// The bottom cockpit panel: large, high-contrast buttons. RED/YELLOW/GREEN log
+/// an observed state (passenger-only per the low-touch safety design); the
+/// primary "Mark Signal Here" action is oversized.
 struct ControlPanel: View {
     let signalCount: Int
-    let canMark: Bool
+    let hasLocation: Bool
     let onMarkSignal: () -> Void
+    let onLogState: (ObservedState) -> Void
     let onCenter: () -> Void
     let onExport: () -> Void
 
@@ -26,6 +28,12 @@ struct ControlPanel: View {
                 .disabled(signalCount == 0)
             }
 
+            HStack(spacing: 12) {
+                stateButton(.red, "Red")
+                stateButton(.yellow, "Yellow")
+                stateButton(.green, "Green")
+            }
+
             Button(action: onMarkSignal) {
                 Label("Mark Signal Here", systemImage: "trafficlight")
                     .font(.title2.weight(.bold))
@@ -33,11 +41,22 @@ struct ControlPanel: View {
                     .frame(height: 64)
             }
             .buttonStyle(PanelButtonStyle(tint: .yellow, prominent: true))
-            .disabled(!canMark)
+            .disabled(!hasLocation)
         }
         .padding()
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24))
         .padding()
+    }
+
+    private func stateButton(_ state: ObservedState, _ title: String) -> some View {
+        Button { onLogState(state) } label: {
+            Text(title)
+                .font(.headline)
+                .frame(maxWidth: .infinity)
+                .frame(height: 48)
+        }
+        .buttonStyle(PanelButtonStyle(tint: state.displayColor, prominent: true))
+        .disabled(!hasLocation)
     }
 }
 

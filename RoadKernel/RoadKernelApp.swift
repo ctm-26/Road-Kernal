@@ -7,7 +7,7 @@ struct RoadKernelApp: App {
         WindowGroup {
             MapScreen()
         }
-        // SwiftData persists to SQLite under the hood. v0.1 stores only Signal.
-        .modelContainer(for: [Signal.self])
+        // SwiftData persists to SQLite under the hood.
+        .modelContainer(for: [Signal.self, SignalObservation.self])
     }
 }
