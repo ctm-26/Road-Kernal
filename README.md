@@ -14,9 +14,18 @@ meaning — collected as field data, stored locally, owned by you.
 
 ## Status
 
-**Design phase — fresh start.** No app code yet. This repository currently holds
-the design documents that fix the problems that sank the first build attempt and
-lay out a deliberately small, runnable path forward.
+**v0.1 scaffold + design docs.** The `RoadKernel/` Swift sources implement the
+smallest runnable slice (map, location, Mark Signal, pins, detail, JSON export),
+with unit tests in `RoadKernelTests/`. The design documents explain the concept,
+the fixes for what sank the first build, and the road ahead.
+
+> Authored on Linux — **not yet compiled**. Build it on a Mac with Xcode; see
+> [SETUP.md](SETUP.md).
+
+## Build & run
+
+See **[SETUP.md](SETUP.md)** — `xcodegen generate` then open in Xcode, or create
+the project manually. v0.1 = one model (`Signal`), one button ("Mark Signal Here").
 
 ## Read these in order
 

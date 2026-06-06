@@ -1,0 +1,54 @@
+# XcodeGen spec. Generates RoadKernel.xcodeproj from the Swift sources so the
+# project file never has to be hand-maintained. See SETUP.md.
+name: RoadKernel
+
+options:
+  bundleIdPrefix: com.roadkernel
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    TARGETED_DEVICE_FAMILY: "2"   # iPad
+
+targets:
+  RoadKernel:
+    type: application
+    platform: iOS
+    sources:
+      - path: RoadKernel
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.roadkernel.app
+        GENERATE_INFOPLIST_FILE: YES
+        # The #1 first-build crash fix: without this key the app crashes the
+        # instant location authorization is requested (docs/ARCHITECTURE.md §1.1).
+        INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: "Road Kernel shows your position on the map and attaches it to traffic signals you mark."
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+        MARKETING_VERSION: "0.1"
+        CURRENT_PROJECT_VERSION: "1"
+
+  RoadKernelTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: RoadKernelTests
+    dependencies:
+      - target: RoadKernel
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  RoadKernel:
+    build:
+      targets:
+        RoadKernel: all
+        RoadKernelTests: [test]
+    test:
+      targets:
+        - RoadKernelTests
