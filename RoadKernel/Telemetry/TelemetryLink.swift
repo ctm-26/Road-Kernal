@@ -10,6 +10,7 @@ import MultipeerConnectivity
 final class TelemetryLink: NSObject, ObservableObject {
     @Published private(set) var status: ConnectionStatus = .disconnected
     @Published private(set) var received: TelemetryData?
+    @Published private(set) var peerKey: String?   // verified peer public key (base64)
 
     private let serviceType = "rk-telemetry"
     private let peerID = MCPeerID(displayName: UIDevice.current.name)
@@ -22,18 +23,22 @@ final class TelemetryLink: NSObject, ObservableObject {
     }()
     private var advertiser: MCNearbyServiceAdvertiser?
     private var browser: MCNearbyServiceBrowser?
+    private var identity: SigningIdentity?
 
-    func startBroadcasting() {
+    func startBroadcasting(identity: SigningIdentity?) {
         stop()
-        let advertiser = MCNearbyServiceAdvertiser(peer: peerID, discoveryInfo: nil, serviceType: serviceType)
+        self.identity = identity
+        let info = identity.flatMap { PeerPairing.proof(identity: $0) }
+        let advertiser = MCNearbyServiceAdvertiser(peer: peerID, discoveryInfo: info, serviceType: serviceType)
         advertiser.delegate = self
         advertiser.startAdvertisingPeer()
         self.advertiser = advertiser
         status = .searching
     }
 
-    func startReceiving() {
+    func startReceiving(identity: SigningIdentity?) {
         stop()
+        self.identity = identity
         let browser = MCNearbyServiceBrowser(peer: peerID, serviceType: serviceType)
         browser.delegate = self
         browser.startBrowsingForPeers()
@@ -52,6 +57,8 @@ final class TelemetryLink: NSObject, ObservableObject {
         session.disconnect()
         status = .disconnected
         received = nil
+        peerKey = nil
+        identity = nil
     }
 
     private var isSearching: Bool { advertiser != nil || browser != nil }
@@ -84,7 +91,16 @@ extension TelemetryLink: MCNearbyServiceAdvertiserDelegate {
                                 didReceiveInvitationFromPeer peerID: MCPeerID,
                                 withContext context: Data?,
                                 invitationHandler: @escaping (Bool, MCSession?) -> Void) {
-        Task { @MainActor in invitationHandler(true, self.session) }
+        // Accept only peers that present a valid signed proof of identity.
+        let verifiedKey = PeerPairing.verifiedKey(fromContext: context)
+        Task { @MainActor in
+            if let verifiedKey {
+                self.peerKey = verifiedKey
+                invitationHandler(true, self.session)
+            } else {
+                invitationHandler(false, nil)
+            }
+        }
     }
 }
 
@@ -92,7 +108,13 @@ extension TelemetryLink: MCNearbyServiceBrowserDelegate {
     nonisolated func browser(_ browser: MCNearbyServiceBrowser,
                              foundPeer peerID: MCPeerID,
                              withDiscoveryInfo info: [String: String]?) {
-        Task { @MainActor in browser.invitePeer(peerID, to: self.session, withContext: nil, timeout: 10) }
+        // Invite only advertisers that present a valid signed proof of identity.
+        guard let key = PeerPairing.verifiedKey(from: info) else { return }
+        Task { @MainActor in
+            self.peerKey = key
+            let context = self.identity.flatMap { PeerPairing.proofData(identity: $0) }
+            browser.invitePeer(peerID, to: self.session, withContext: context, timeout: 10)
+        }
     }
 
     nonisolated func browser(_ browser: MCNearbyServiceBrowser, lostPeer peerID: MCPeerID) {}

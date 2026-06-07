@@ -26,6 +26,26 @@ final class TelemetryTests: XCTestCase {
         XCTAssertEqual(decoded, sample)
     }
 
+    func testPeerPairingVerifiesValidProof() {
+        let identity = EphemeralIdentity()
+        let expected = identity.publicKey.rawRepresentation.base64EncodedString()
+
+        XCTAssertEqual(PeerPairing.verifiedKey(from: PeerPairing.proof(identity: identity)), expected)
+        XCTAssertEqual(PeerPairing.verifiedKey(fromContext: PeerPairing.proofData(identity: identity)), expected)
+    }
+
+    func testPeerPairingRejectsTamperedProof() {
+        let identity = EphemeralIdentity()
+        var info = PeerPairing.proof(identity: identity)!
+        info["n"] = Data([1, 2, 3]).base64EncodedString()   // nonce no longer matches the signature
+        XCTAssertNil(PeerPairing.verifiedKey(from: info))
+    }
+
+    func testPeerPairingRejectsMissingProof() {
+        XCTAssertNil(PeerPairing.verifiedKey(from: nil))
+        XCTAssertNil(PeerPairing.verifiedKey(fromContext: nil))
+    }
+
     @MainActor
     func testSettingsPersistAcrossInstances() {
         let suite = UserDefaults(suiteName: "telemetry.tests")!

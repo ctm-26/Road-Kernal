@@ -29,14 +29,23 @@ struct TelemetryRootView: View {
     }
 
     private var header: some View {
-        HStack {
-            Picker("Role", selection: $hub.role) {
-                ForEach(AppRole.allCases) { Text($0.label).tag($0) }
-            }
-            .pickerStyle(.segmented)
-            .disabled(isLive)
+        VStack(spacing: Theme.Spacing.sm) {
+            HStack {
+                Picker("Role", selection: $hub.role) {
+                    ForEach(AppRole.allCases) { Text($0.label).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .disabled(isLive)
 
-            ConnectionStatusBadge(status: hub.connectionStatus)
+                ConnectionStatusBadge(status: hub.connectionStatus)
+            }
+
+            if let peerKey = hub.peerKey {
+                Label("Verified peer · \(PeerPairing.fingerprint(peerKey))", systemImage: "checkmark.seal.fill")
+                    .font(Theme.Typography.label)
+                    .foregroundStyle(Theme.Colors.primary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
     }
 

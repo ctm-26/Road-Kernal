@@ -10,6 +10,7 @@ final class TelemetryHub: ObservableObject {
     @Published var sourceKind: TelemetrySourceKind
     @Published private(set) var telemetry: TelemetryData = .empty
     @Published private(set) var connectionStatus: ConnectionStatus = .disconnected
+    @Published private(set) var peerKey: String?   // verified peer identity, when paired
 
     private let link = TelemetryLink()
     private var source: TelemetrySource?
@@ -25,12 +26,13 @@ final class TelemetryHub: ObservableObject {
     func connect() {
         disconnect()
         link.$status.sink { [weak self] in self?.connectionStatus = $0 }.store(in: &cancellables)
+        link.$peerKey.sink { [weak self] in self?.peerKey = $0 }.store(in: &cancellables)
 
         switch role {
         case .controller:
             let source = makeSource()
             self.source = source
-            link.startBroadcasting()
+            link.startBroadcasting(identity: try? KeychainIdentity.loadOrCreate())
             source.samples.sink { [weak self] sample in
                 self?.telemetry = sample
                 self?.link.send(sample)
@@ -47,7 +49,7 @@ final class TelemetryHub: ObservableObject {
                 source.start()
                 connectionStatus = .mock
             } else {
-                link.startReceiving()
+                link.startReceiving(identity: try? KeychainIdentity.loadOrCreate())
                 link.$received.compactMap { $0 }.sink { [weak self] in self?.telemetry = $0 }.store(in: &cancellables)
             }
         }
@@ -60,6 +62,7 @@ final class TelemetryHub: ObservableObject {
         link.stop()
         telemetry = .empty
         connectionStatus = .disconnected
+        peerKey = nil
     }
 
     private func makeSource() -> TelemetrySource {
