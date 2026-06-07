@@ -7,7 +7,7 @@ import Combine
 @MainActor
 final class TelemetryHub: ObservableObject {
     @Published var role: AppRole
-    @Published var useMock: Bool
+    @Published var sourceKind: TelemetrySourceKind
     @Published private(set) var telemetry: TelemetryData = .empty
     @Published private(set) var connectionStatus: ConnectionStatus = .disconnected
 
@@ -15,12 +15,12 @@ final class TelemetryHub: ObservableObject {
     private var source: TelemetrySource?
     private var cancellables = Set<AnyCancellable>()
 
-    init(role: AppRole = .deviceDefault, useMock: Bool = false) {
+    init(role: AppRole = .deviceDefault, sourceKind: TelemetrySourceKind = .gps) {
         self.role = role
-        self.useMock = useMock
+        self.sourceKind = sourceKind
     }
 
-    var isMockMode: Bool { useMock }
+    var isMockMode: Bool { sourceKind == .mock }
 
     func connect() {
         disconnect()
@@ -38,7 +38,9 @@ final class TelemetryHub: ObservableObject {
             source.start()
 
         case .dashboard:
-            if useMock {
+            // Mock runs locally for standalone testing; GPS/OBD live on the
+            // controller, so the dashboard receives them over the link.
+            if sourceKind == .mock {
                 let source = makeSource()
                 self.source = source
                 source.samples.sink { [weak self] in self?.telemetry = $0 }.store(in: &cancellables)
@@ -61,6 +63,10 @@ final class TelemetryHub: ObservableObject {
     }
 
     private func makeSource() -> TelemetrySource {
-        useMock ? MockTelemetrySource() : GPSTelemetrySource()
+        switch sourceKind {
+        case .gps: return GPSTelemetrySource()
+        case .mock: return MockTelemetrySource()
+        case .obd: return OBDTelemetrySource()
+        }
     }
 }

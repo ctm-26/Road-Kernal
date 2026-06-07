@@ -33,10 +33,10 @@ final class TelemetryTests: XCTestCase {
 
         let store = SettingsStore(defaults: suite)
         store.useMetric = true
-        store.mockMode = true
+        store.sourceKind = .obd
 
         let reloaded = SettingsStore(defaults: suite)
         XCTAssertTrue(reloaded.useMetric)
-        XCTAssertTrue(reloaded.mockMode)
+        XCTAssertEqual(reloaded.sourceKind, .obd)
     }
 }

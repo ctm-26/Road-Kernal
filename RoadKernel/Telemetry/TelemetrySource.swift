@@ -11,6 +11,24 @@ protocol TelemetrySource: AnyObject {
     func stop()
 }
 
+/// Which producer drives telemetry. The selection architecture is a single enum
+/// so GPS, Mock, and the future OBD source are interchangeable everywhere.
+enum TelemetrySourceKind: String, CaseIterable, Identifiable {
+    case gps, mock, obd
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .gps: return "GPS"
+        case .mock: return "Mock"
+        case .obd: return "OBD (soon)"
+        }
+    }
+
+    var isImplemented: Bool { self != .obd }
+}
+
 /// Real telemetry from the phone's GPS, reusing the app's LocationManager.
 @MainActor
 final class GPSTelemetrySource: TelemetrySource {
@@ -74,5 +92,30 @@ final class MockTelemetrySource: TelemetrySource {
         sample.currentLap = Int(t / 60) + 1
         sample.position = 3
         subject.send(sample)
+    }
+}
+
+/// Stub for real vehicle data. Conforms to TelemetrySource so it slots into the
+/// existing source selection and the iPhone↔iPad link with no other changes.
+/// Produces no samples yet — the dashboard simply shows "—" until implemented.
+///
+/// TODO: connect to an OBD-II adapter over BLE (e.g. ELM327) using CoreBluetooth
+///       (system framework, no dependency) — scan, connect, open the ELM327 channel.
+/// TODO: poll OBD-II PIDs and map them onto TelemetryData
+///       (speed 0x0D, rpm 0x0C, throttle 0x11, fuel level 0x2F) via subject.send.
+/// TODO: optionally decode manufacturer CAN frames for gear/brake where exposed.
+@MainActor
+final class OBDTelemetrySource: TelemetrySource {
+    private let subject = PassthroughSubject<TelemetryData, Never>()
+
+    var samples: AnyPublisher<TelemetryData, Never> { subject.eraseToAnyPublisher() }
+
+    func start() {
+        // TODO: begin BLE scan / OBD handshake, then publish decoded samples.
+        // No-op until implemented so the app keeps working with OBD selected.
+    }
+
+    func stop() {
+        // TODO: tear down the BLE connection.
     }
 }

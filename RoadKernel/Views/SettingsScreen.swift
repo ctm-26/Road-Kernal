@@ -10,9 +10,11 @@ struct SettingsScreen: View {
                 Section("Units") {
                     Toggle("Use metric (km/h)", isOn: $settings.useMetric)
                 }
-                Section("Telemetry") {
-                    Toggle("Mock telemetry mode", isOn: $settings.mockMode)
-                    Text("Mock generates fake racing data so the dashboard works without GPS or a paired device.")
+                Section("Telemetry source") {
+                    Picker("Source", selection: $settings.sourceKind) {
+                        ForEach(TelemetrySourceKind.allCases) { Text($0.label).tag($0) }
+                    }
+                    Text(sourceHint)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -21,6 +23,14 @@ struct SettingsScreen: View {
                 }
             }
             .navigationTitle("Settings")
+        }
+    }
+
+    private var sourceHint: String {
+        switch settings.sourceKind {
+        case .gps: return "Real speed/heading from the phone's GPS."
+        case .mock: return "Fake racing data so the dashboard works without GPS or a paired device."
+        case .obd: return "Vehicle data over OBD-II isn't implemented yet — produces no data for now."
         }
     }
 }

@@ -49,7 +49,7 @@ struct TelemetryRootView: View {
                 .buttonStyle(.borderedProminent)
             } else {
                 Button {
-                    hub.useMock = settings.mockMode
+                    hub.sourceKind = settings.sourceKind
                     hub.connect()
                 } label: {
                     Label(connectTitle, systemImage: "play.fill").frame(maxWidth: .infinity)
@@ -61,7 +61,7 @@ struct TelemetryRootView: View {
     }
 
     private var connectTitle: String {
-        if settings.mockMode { return "Start Mock" }
+        if settings.sourceKind == .mock { return "Start Mock" }
         return hub.role == .dashboard ? "Connect to Controller" : "Start Broadcasting"
     }
 }
