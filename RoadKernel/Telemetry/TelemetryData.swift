@@ -33,5 +33,5 @@ extension TelemetryData {
 
 /// State of the live link between devices (or mock when running standalone).
 enum ConnectionStatus: String {
-    case disconnected, searching, connected, mock
+    case disconnected, searching, connected, mock, failed
 }

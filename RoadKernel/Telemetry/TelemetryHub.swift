@@ -10,7 +10,8 @@ final class TelemetryHub: ObservableObject {
     @Published var sourceKind: TelemetrySourceKind
     @Published private(set) var telemetry: TelemetryData = .empty
     @Published private(set) var connectionStatus: ConnectionStatus = .disconnected
-    @Published private(set) var peerKey: String?   // verified peer identity, when paired
+    @Published private(set) var peerKey: String?      // verified peer identity, when paired
+    @Published private(set) var events: [String] = [] // link activity, newest first
 
     private let link = TelemetryLink()
     private var source: TelemetrySource?
@@ -27,6 +28,7 @@ final class TelemetryHub: ObservableObject {
         disconnect()
         link.$status.sink { [weak self] in self?.connectionStatus = $0 }.store(in: &cancellables)
         link.$peerKey.sink { [weak self] in self?.peerKey = $0 }.store(in: &cancellables)
+        link.$events.sink { [weak self] in self?.events = $0 }.store(in: &cancellables)
 
         switch role {
         case .controller:

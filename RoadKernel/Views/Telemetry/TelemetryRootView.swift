@@ -1,12 +1,18 @@
 import SwiftUI
 
 /// Role-switched telemetry screen: pick Dashboard or Controller, connect/start,
-/// and view live data. Reads units/mock from settings.
+/// and view live data. Reads units/source from settings. Includes a debug panel
+/// for discovery/invitation/accept/reject visibility while bringing the app up.
 struct TelemetryRootView: View {
     @EnvironmentObject private var settings: SettingsStore
     @StateObject private var hub = TelemetryHub()
 
-    private var isLive: Bool { hub.connectionStatus != .disconnected }
+    private var isLive: Bool {
+        switch hub.connectionStatus {
+        case .searching, .connected, .mock: return true
+        case .disconnected, .failed: return false
+        }
+    }
 
     var body: some View {
         ZStack {
@@ -23,6 +29,7 @@ struct TelemetryRootView: View {
 
                 Spacer(minLength: 0)
                 controls
+                debugPanel
             }
             .padding(Theme.Spacing.lg)
         }
@@ -46,6 +53,13 @@ struct TelemetryRootView: View {
                     .foregroundStyle(Theme.Colors.primary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
+
+            if let latest = hub.events.first {
+                Text(latest)
+                    .font(.caption2)
+                    .foregroundStyle(hub.connectionStatus == .failed ? Theme.Colors.accent : Theme.Colors.textSecondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
     }
 
@@ -67,6 +81,31 @@ struct TelemetryRootView: View {
                 .tint(Theme.Colors.primary)
             }
         }
+    }
+
+    private var debugPanel: some View {
+        DisclosureGroup("Debug") {
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                Text("Role: \(hub.role.label)   Source: \(settings.sourceKind.label)   Status: \(hub.connectionStatus.rawValue)")
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 2) {
+                        ForEach(Array(hub.events.enumerated()), id: \.offset) { _, line in
+                            Text(line)
+                                .font(.system(.caption2, design: .monospaced))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                }
+                .frame(maxHeight: 150)
+            }
+            .font(.caption)
+            .foregroundStyle(Theme.Colors.textSecondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, Theme.Spacing.sm)
+        }
+        .tint(Theme.Colors.textSecondary)
+        .padding(Theme.Spacing.md)
+        .background(Theme.Colors.surface, in: RoundedRectangle(cornerRadius: 16))
     }
 
     private var connectTitle: String {

@@ -9,6 +9,7 @@ struct ConnectionStatusBadge: View {
         case .connected: return Theme.Colors.primary
         case .searching: return .yellow
         case .mock: return .blue
+        case .failed: return Theme.Colors.accent
         case .disconnected: return Theme.Colors.textSecondary
         }
     }
@@ -18,6 +19,7 @@ struct ConnectionStatusBadge: View {
         case .connected: return "Connected"
         case .searching: return "Searching…"
         case .mock: return "Mock"
+        case .failed: return "Error"
         case .disconnected: return "Disconnected"
         }
     }

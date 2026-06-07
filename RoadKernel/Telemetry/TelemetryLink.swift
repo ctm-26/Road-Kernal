@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import MultipeerConnectivity
 
 /// Live device-to-device telemetry over the local network — no server, no
@@ -10,7 +11,8 @@ import MultipeerConnectivity
 final class TelemetryLink: NSObject, ObservableObject {
     @Published private(set) var status: ConnectionStatus = .disconnected
     @Published private(set) var received: TelemetryData?
-    @Published private(set) var peerKey: String?   // verified peer public key (base64)
+    @Published private(set) var peerKey: String?      // verified peer public key (base64)
+    @Published private(set) var events: [String] = [] // newest first; for the debug panel
 
     private let serviceType = "rk-telemetry"
     private let peerID = MCPeerID(displayName: UIDevice.current.name)
@@ -27,6 +29,7 @@ final class TelemetryLink: NSObject, ObservableObject {
 
     func startBroadcasting(identity: SigningIdentity?) {
         stop()
+        events.removeAll()
         self.identity = identity
         let info = identity.flatMap { PeerPairing.proof(identity: $0) }
         let advertiser = MCNearbyServiceAdvertiser(peer: peerID, discoveryInfo: info, serviceType: serviceType)
@@ -34,16 +37,19 @@ final class TelemetryLink: NSObject, ObservableObject {
         advertiser.startAdvertisingPeer()
         self.advertiser = advertiser
         status = .searching
+        note("Advertising as \(peerID.displayName) (\(info == nil ? "unsigned" : "signed"))")
     }
 
     func startReceiving(identity: SigningIdentity?) {
         stop()
+        events.removeAll()
         self.identity = identity
         let browser = MCNearbyServiceBrowser(peer: peerID, serviceType: serviceType)
         browser.delegate = self
         browser.startBrowsingForPeers()
         self.browser = browser
         status = .searching
+        note("Browsing for peers as \(peerID.displayName)")
     }
 
     func send(_ telemetry: TelemetryData) {
@@ -52,6 +58,7 @@ final class TelemetryLink: NSObject, ObservableObject {
     }
 
     func stop() {
+        if isSearching || !session.connectedPeers.isEmpty { note("Link stopped") }
         advertiser?.stopAdvertisingPeer(); advertiser = nil
         browser?.stopBrowsingForPeers(); browser = nil
         session.disconnect()
@@ -62,16 +69,35 @@ final class TelemetryLink: NSObject, ObservableObject {
     }
 
     private var isSearching: Bool { advertiser != nil || browser != nil }
+
+    private func note(_ message: String) {
+        events.insert("\(Self.timeFormatter.string(from: Date()))  \(message)", at: 0)
+        if events.count > 50 { events.removeLast(events.count - 50) }
+    }
+
+    private static let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        return formatter
+    }()
 }
 
 extension TelemetryLink: MCSessionDelegate {
     nonisolated func session(_ session: MCSession, peer peerID: MCPeerID, didChange state: MCSessionState) {
+        let name = peerID.displayName
         Task { @MainActor in
             switch state {
-            case .connected: self.status = .connected
-            case .connecting: self.status = .searching
-            case .notConnected: self.status = self.isSearching ? .searching : .disconnected
-            @unknown default: break
+            case .connected:
+                self.status = .connected
+                self.note("Connected to \(name)")
+            case .connecting:
+                self.status = .searching
+                self.note("Connecting to \(name)…")
+            case .notConnected:
+                self.status = self.isSearching ? .searching : .disconnected
+                self.note("Disconnected from \(name)")
+            @unknown default:
+                break
             }
         }
     }
@@ -92,14 +118,25 @@ extension TelemetryLink: MCNearbyServiceAdvertiserDelegate {
                                 withContext context: Data?,
                                 invitationHandler: @escaping (Bool, MCSession?) -> Void) {
         // Accept only peers that present a valid signed proof of identity.
+        let name = peerID.displayName
         let verifiedKey = PeerPairing.verifiedKey(fromContext: context)
         Task { @MainActor in
             if let verifiedKey {
                 self.peerKey = verifiedKey
+                self.note("Accepted invitation from \(name) [\(PeerPairing.fingerprint(verifiedKey))]")
                 invitationHandler(true, self.session)
             } else {
+                self.note("Rejected unverified invitation from \(name)")
                 invitationHandler(false, nil)
             }
+        }
+    }
+
+    nonisolated func advertiser(_ advertiser: MCNearbyServiceAdvertiser, didNotStartAdvertisingPeer error: Error) {
+        let message = error.localizedDescription
+        Task { @MainActor in
+            self.status = .failed
+            self.note("Advertising failed: \(message)")
         }
     }
 }
@@ -109,13 +146,30 @@ extension TelemetryLink: MCNearbyServiceBrowserDelegate {
                              foundPeer peerID: MCPeerID,
                              withDiscoveryInfo info: [String: String]?) {
         // Invite only advertisers that present a valid signed proof of identity.
-        guard let key = PeerPairing.verifiedKey(from: info) else { return }
+        let name = peerID.displayName
+        guard let key = PeerPairing.verifiedKey(from: info) else {
+            Task { @MainActor in self.note("Ignored unverified peer \(name)") }
+            return
+        }
         Task { @MainActor in
             self.peerKey = key
+            self.note("Found verified peer \(name) [\(PeerPairing.fingerprint(key))]")
             let context = self.identity.flatMap { PeerPairing.proofData(identity: $0) }
             browser.invitePeer(peerID, to: self.session, withContext: context, timeout: 10)
+            self.note("Invited \(name)")
         }
     }
 
-    nonisolated func browser(_ browser: MCNearbyServiceBrowser, lostPeer peerID: MCPeerID) {}
+    nonisolated func browser(_ browser: MCNearbyServiceBrowser, lostPeer peerID: MCPeerID) {
+        let name = peerID.displayName
+        Task { @MainActor in self.note("Lost peer \(name)") }
+    }
+
+    nonisolated func browser(_ browser: MCNearbyServiceBrowser, didNotStartBrowsingForPeers error: Error) {
+        let message = error.localizedDescription
+        Task { @MainActor in
+            self.status = .failed
+            self.note("Browsing failed: \(message)")
+        }
+    }
 }
