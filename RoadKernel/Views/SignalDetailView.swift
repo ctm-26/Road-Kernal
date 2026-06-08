@@ -72,6 +72,12 @@ private struct ObservationHistorySection: View {
             LabeledContent("Suggested confidence",
                            value: ConfidenceHeuristic.suggested(sampleCount: observations.count).rawValue.capitalized)
 
+            if !observations.isEmpty {
+                stateBreakdownRow
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+            }
+
             if observations.isEmpty {
                 Text("No observations yet. Use Red / Yellow / Green while stopped (passenger).")
                     .font(.caption)
@@ -88,6 +94,51 @@ private struct ObservationHistorySection: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+            }
+        }
+    }
+
+    // MARK: - Breakdown
+
+    /// Groups observations by state, ordered consistently for the bar.
+    private var stateCounts: [(ObservedState, Int)] {
+        let grouped = Dictionary(grouping: observations, by: { $0.observedState })
+        return ObservedState.allCases.compactMap { state in
+            guard let count = grouped[state]?.count, count > 0 else { return nil }
+            return (state, count)
+        }
+    }
+
+    /// Proportional Canvas bar + per-state count chips in one row.
+    private var stateBreakdownRow: some View {
+        let counts = stateCounts
+        let total = observations.count
+        return VStack(spacing: 6) {
+            // Proportional colour bar drawn with Canvas to avoid GeometryReader in Form.
+            Canvas { ctx, size in
+                var x: CGFloat = 0
+                for (state, count) in counts {
+                    let w = size.width * CGFloat(count) / CGFloat(total)
+                    let rect = CGRect(x: x, y: 0, width: w, height: size.height)
+                    ctx.fill(Path(roundedRect: rect, cornerRadius: 0),
+                             with: .color(state.displayColor))
+                    x += w
+                }
+            }
+            .frame(height: 6)
+            .clipShape(RoundedRectangle(cornerRadius: 3))
+
+            // Per-state dot + count chips.
+            HStack(spacing: 12) {
+                ForEach(counts, id: \.0.rawValue) { state, count in
+                    HStack(spacing: 4) {
+                        Circle().fill(state.displayColor).frame(width: 8, height: 8)
+                        Text("\(count)")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Spacer()
             }
         }
     }

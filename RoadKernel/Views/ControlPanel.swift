@@ -11,6 +11,11 @@ struct ControlPanel: View {
     let onCenter: () -> Void
     let onExport: () -> Void
 
+    // Separate counters so each state can carry a distinct haptic weight.
+    @State private var redTaps = 0
+    @State private var yellowTaps = 0
+    @State private var greenTaps = 0
+
     var body: some View {
         VStack(spacing: 12) {
             HStack(spacing: 12) {
@@ -46,10 +51,20 @@ struct ControlPanel: View {
         .padding()
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24))
         .padding()
+        .sensoryFeedback(.impact(weight: .heavy), trigger: redTaps)
+        .sensoryFeedback(.impact(weight: .medium), trigger: yellowTaps)
+        .sensoryFeedback(.impact(flexibility: .soft, intensity: 0.85), trigger: greenTaps)
     }
 
     private func stateButton(_ state: ObservedState, _ title: String) -> some View {
-        Button { onLogState(state) } label: {
+        Button {
+            switch state {
+            case .red:    redTaps += 1
+            case .yellow: yellowTaps += 1
+            default:      greenTaps += 1
+            }
+            onLogState(state)
+        } label: {
             Text(title)
                 .font(.headline)
                 .frame(maxWidth: .infinity)

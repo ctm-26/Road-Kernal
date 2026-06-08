@@ -65,9 +65,14 @@ final class MockTelemetrySource: TelemetrySource {
     var samples: AnyPublisher<TelemetryData, Never> { subject.eraseToAnyPublisher() }
 
     func start() {
-        timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-            self?.tick()
+        // Use Timer(...) + add(.common) so the mock fires during scroll tracking too.
+        // scheduledTimer would double-schedule when combined with add(.common).
+        let newTimer = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            Task { @MainActor in self.tick() }
         }
+        RunLoop.main.add(newTimer, forMode: .common)
+        timer = newTimer
     }
 
     func stop() {

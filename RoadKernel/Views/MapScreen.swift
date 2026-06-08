@@ -17,13 +17,20 @@ struct MapScreen: View {
     @State private var pending: PendingObservation?
     @State private var exportText: String?
 
+    /// Keyed by signalID → most recent observed state. Observations are already
+    /// sorted newest-first by the @Query, so first-wins gives the latest state.
+    private var lastStateByID: [UUID: ObservedState] {
+        Dictionary(observations.map { ($0.signalID, $0.observedState) },
+                   uniquingKeysWith: { first, _ in first })
+    }
+
     var body: some View {
         Map(position: $camera) {
             UserAnnotation()
             ForEach(signals) { signal in
                 Annotation(signal.name.isEmpty ? "Signal" : signal.name,
                            coordinate: signal.coordinate) {
-                    SignalPin()
+                    SignalPin(lastState: lastStateByID[signal.id])
                         .onTapGesture { selectedSignal = signal }
                 }
             }
@@ -126,11 +133,22 @@ private struct ExportPayload: Identifiable {
 }
 
 struct SignalPin: View {
+    var lastState: ObservedState? = nil
+
     var body: some View {
-        Image(systemName: "trafficlight")
-            .font(.title2)
-            .foregroundStyle(.yellow)
-            .padding(6)
-            .background(.black.opacity(0.6), in: Circle())
+        ZStack(alignment: .topTrailing) {
+            Image(systemName: "trafficlight")
+                .font(.title2)
+                .foregroundStyle(.yellow)
+                .padding(6)
+                .background(.black.opacity(0.6), in: Circle())
+            if let state = lastState, state != .unknown {
+                Circle()
+                    .fill(state.displayColor)
+                    .frame(width: 10, height: 10)
+                    .shadow(color: state.displayColor, radius: 5)
+                    .offset(x: 2, y: -2)
+            }
+        }
     }
 }
