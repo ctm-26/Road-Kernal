@@ -8,6 +8,6 @@ struct RoadKernelApp: App {
             RootView()
         }
         // SwiftData persists to SQLite under the hood.
-        .modelContainer(for: [Signal.self, SignalObservation.self])
+        .modelContainer(for: [Signal.self, SignalObservation.self, RoadAsset.self])
     }
 }

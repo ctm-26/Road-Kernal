@@ -32,9 +32,28 @@ enum JSONExporter {
         let notes: String
     }
 
+    struct RoadAssetDTO: Codable {
+        let id: String
+        let kind: String
+        let label: String
+        let latitude: Double
+        let longitude: Double
+        let direction: String
+        let movement: String
+        let stopLineLatitude: Double
+        let stopLineLongitude: Double
+        let zoneRadiusMeters: Double
+        let railWarningSeconds: Double
+        let railGateDownSeconds: Double
+        let notes: String
+        let createdAt: String
+        let updatedAt: String
+    }
+
     struct Payload: Codable {
         let signals: [SignalDTO]
         let observations: [ObservationDTO]
+        let roadAssets: [RoadAssetDTO]
     }
 
     /// A portable bundle of signed, content-addressed records. Observations carry
@@ -45,15 +64,19 @@ enum JSONExporter {
         let exportedAt: String
         let signals: [SignedRecord<SignalDTO>]
         let observations: [SignedRecord<ObservationDTO>]
+        let roadAssets: [SignedRecord<RoadAssetDTO>]
     }
 
     // MARK: - Plain export
 
-    static func export(signals: [Signal], observations: [SignalObservation] = []) -> String {
+    static func export(signals: [Signal],
+                       observations: [SignalObservation] = [],
+                       roadAssets: [RoadAsset] = []) -> String {
         let formatter = ISO8601DateFormatter()
         let payload = Payload(
             signals: signals.map { dto(for: $0, formatter: formatter) },
-            observations: observations.map { dto(for: $0, formatter: formatter) }
+            observations: observations.map { dto(for: $0, formatter: formatter) },
+            roadAssets: roadAssets.map { dto(for: $0, formatter: formatter) }
         )
         return encode(payload) ?? "{}"
     }
@@ -62,6 +85,7 @@ enum JSONExporter {
 
     static func signedBundle(signals: [Signal],
                              observations: [SignalObservation] = [],
+                             roadAssets: [RoadAsset] = [],
                              identity: SigningIdentity) throws -> SignedBundle {
         let formatter = ISO8601DateFormatter()
 
@@ -81,17 +105,26 @@ enum JSONExporter {
                                          parents: parents, identity: identity)
         }
 
+        let roadAssetRecords = try roadAssets.map {
+            try RecordSigner.make(payload: dto(for: $0, formatter: formatter), identity: identity)
+        }
+
         return SignedBundle(version: 1,
                             kind: "roadkernel.bundle.v1",
                             exportedAt: formatter.string(from: .now),
                             signals: signalRecords,
-                            observations: observationRecords)
+                            observations: observationRecords,
+                            roadAssets: roadAssetRecords)
     }
 
     static func signedBundleJSON(signals: [Signal],
                                  observations: [SignalObservation] = [],
+                                 roadAssets: [RoadAsset] = [],
                                  identity: SigningIdentity) throws -> String {
-        encode(try signedBundle(signals: signals, observations: observations, identity: identity)) ?? "{}"
+        encode(try signedBundle(signals: signals,
+                                observations: observations,
+                                roadAssets: roadAssets,
+                                identity: identity)) ?? "{}"
     }
 
     // MARK: - DTO mapping
@@ -125,6 +158,26 @@ enum JSONExporter {
             confidence: observation.confidence.rawValue,
             source: observation.source.rawValue,
             notes: observation.notes
+        )
+    }
+
+    static func dto(for asset: RoadAsset, formatter: ISO8601DateFormatter) -> RoadAssetDTO {
+        RoadAssetDTO(
+            id: asset.id.uuidString,
+            kind: asset.kind.rawValue,
+            label: asset.label,
+            latitude: asset.latitude,
+            longitude: asset.longitude,
+            direction: asset.direction.rawValue,
+            movement: asset.movement.rawValue,
+            stopLineLatitude: asset.stopLineLatitude,
+            stopLineLongitude: asset.stopLineLongitude,
+            zoneRadiusMeters: asset.zoneRadiusMeters,
+            railWarningSeconds: asset.railWarningSeconds,
+            railGateDownSeconds: asset.railGateDownSeconds,
+            notes: asset.notes,
+            createdAt: formatter.string(from: asset.createdAt),
+            updatedAt: formatter.string(from: asset.updatedAt)
         )
     }
 

@@ -48,6 +48,26 @@ final class ObservationTests: XCTestCase {
         XCTAssertEqual(ConfidenceHeuristic.suggested(sampleCount: 10), .high)
     }
 
+    func testSignalNameFormatterCondensesStreetNames() {
+        let name = SignalNameFormatter.condensedName(from: ["North Main Street", "River Road"])
+        XCTAssertEqual(name, "NORTH MAIN & RIVER")
+    }
+
+    func testSignalNameFormatterFallbackIsUppercase() {
+        let name = SignalNameFormatter.fallbackName(for: .init(latitude: 40.1256, longitude: -74.9876))
+        XCTAssertEqual(name, "SIGNAL 40.1256 -74.9876")
+    }
+
+    func testRoadAssetDefaultsIncludeDirectionalStopLine() {
+        let asset = RoadAsset(kind: .signalHead,
+                              coordinate: .init(latitude: 40, longitude: -74),
+                              direction: .north)
+        XCTAssertEqual(asset.kind, .signalHead)
+        XCTAssertEqual(asset.direction, .north)
+        XCTAssertGreaterThan(asset.stopLineLatitude, asset.latitude)
+        XCTAssertEqual(asset.zoneRadiusMeters, 10, accuracy: 0.001)
+    }
+
     func testSignedBundleLinksObservationToSignalParent() throws {
         let signal = Signal(coordinate: .init(latitude: 40, longitude: -74))
         let observation = SignalObservation(signalID: signal.id, state: .red,

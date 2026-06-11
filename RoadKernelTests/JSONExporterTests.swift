@@ -63,4 +63,21 @@ final class JSONExporterTests: XCTestCase {
         XCTAssertEqual(dto.longitude, -74.654321, accuracy: 1e-9)
         XCTAssertFalse(dto.id.isEmpty)
     }
+
+    func testExportContainsRoadAssets() throws {
+        let asset = RoadAsset(kind: .railroadCrossing,
+                              coordinate: .init(latitude: 40.1, longitude: -74.2),
+                              direction: .east)
+        asset.label = "RAIL A"
+        asset.railWarningSeconds = 25
+
+        let json = JSONExporter.export(signals: [], roadAssets: [asset])
+        let payload = try JSONDecoder().decode(JSONExporter.Payload.self, from: Data(json.utf8))
+        XCTAssertEqual(payload.roadAssets.count, 1)
+        let dto = try XCTUnwrap(payload.roadAssets.first)
+        XCTAssertEqual(dto.kind, "railroadCrossing")
+        XCTAssertEqual(dto.direction, "east")
+        XCTAssertEqual(dto.label, "RAIL A")
+        XCTAssertEqual(dto.railWarningSeconds, 25, accuracy: 0.001)
+    }
 }
